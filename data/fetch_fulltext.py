@@ -73,8 +73,14 @@ def main():
     with open("journal_names.json", "r") as f:
         journal_names = json.load(f)
 
-    for journal in journal_names["journal_names"]:
-        query = f"({journal}[Journal]) AND (2002[Publication Date] : 2022[Publication Date])"
+    # for journal in journal_names["journal_names"]:
+    for journal in ["Journal of Neuroscience"]:
+        if journal == "Journal of Neuroscience":
+            journal_code_name = "J Neurosci"
+        else:
+            journal_code_name = journal
+        query = f"({journal_code_name}[Journal]) AND (2002[Publication Date] : 2022[Publication Date])"
+        
         print(f"\n\n\nFetching fulltext for {journal}\n\n\n")
         pubget(query)
         save_individual_files(journal)
