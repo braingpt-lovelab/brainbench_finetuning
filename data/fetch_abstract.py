@@ -131,10 +131,13 @@ def extract_abstracts(fetch_data):
         if not abstract:
             continue
         else:
-            abstracts.append(abstract[0])
             doi = re.findall(doi_pattern, article)
-            doi = utils.doi_reformer(doi[0])
-            dois.append(doi)
+            if not doi:
+                continue
+            else:
+                abstracts.append(abstract[0])
+                doi = utils.doi_reformer(doi[0])
+                dois.append(doi)
 
     # Extract the text content of each <ArticleId> element
     print(f"len(abstracts): {len(abstracts)}")
