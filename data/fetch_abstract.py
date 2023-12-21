@@ -113,12 +113,32 @@ def extract_abstracts(fetch_data):
     """
     abstracts = []
     dois = []
-    for abstract in re.findall("<AbstractText>(.*?)</AbstractText>", fetch_data):
-        abstracts.append(abstract)
-    for doi in re.findall('<ArticleId IdType="doi">(.*?)</ArticleId>', fetch_data):
-        doi = utils.doi_reformer(doi)
-        dois.append(doi)
-    
+
+    reference_pattern = r'<Reference>(.*?)</Reference>'
+    article_pattern = r'<PubmedArticle>(.*?)</PubmedArticle>'
+    abstract_pattern = r'<AbstractText>(.*?)</AbstractText>'
+    doi_pattern = r'<ArticleId IdType="doi">(.*?)</ArticleId>'
+
+    # 1. Apply the regex to remove everything within <ReferenceList> tags
+    fetch_data = re.sub(reference_pattern, '', fetch_data)
+
+    # 2. Locate all articles within <PubmedArticle> tags
+    for article in re.findall(article_pattern, fetch_data):
+        # 3. for each article, check if there is abstract tag
+        # If abstract does not exist, skip this article (has doi but no abstract)
+        # If exists, we extract both abstract and doi
+        abstract = re.findall(abstract_pattern, article)
+        if not abstract:
+            continue
+        else:
+            abstracts.append(abstract[0])
+            doi = re.findall(doi_pattern, article)
+            doi = utils.doi_reformer(doi[0])
+            dois.append(doi)
+
+    # Extract the text content of each <ArticleId> element
+    print(f"len(abstracts): {len(abstracts)}")
+    print(f"len(dois): {len(dois)}")
     assert len(abstracts) == len(dois)
     return abstracts, dois
 
@@ -150,14 +170,16 @@ def save_individual_files(journal, abstracts, dois):
 
 def main():
     db = 'db=pubmed'
-    retmax = 2
+    retmax = 99999
     base_url = 'https://eutils.ncbi.nlm.nih.gov/entrez/eutils/'
 
     with open("journal_names.json", "r") as f:
         journal_names = json.load(f)
 
     for journal in journal_names["journal_names"]:
-        query = f"{journal}[Journal]+AND+2002:2022[DP]"
+        # Replace space with + sign
+        journal_no_space = journal.replace(" ", "+")
+        query = f"{journal_no_space}[Journal]+AND+2002:2022[DP]"
 
         # search pubmed
         search_data = _esearch(query, retmax, base_url, db)
