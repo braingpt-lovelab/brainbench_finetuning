@@ -48,6 +48,9 @@ def save_individual_files(journal):
     df_text_body = df_text["body"]
     df_doi = pd.read_csv(metadata_fpath)["doi"]
     for abstract, body, doi in zip(df_text_abstract, df_text_body, df_doi):
+        if type(doi) != str:
+            continue
+        
         doi = utils.doi_reformer(doi)
         json_fpath = os.path.join(journal_dir, f"{doi}.json")
 
