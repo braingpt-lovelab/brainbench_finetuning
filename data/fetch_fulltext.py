@@ -72,7 +72,7 @@ def main():
 
     for journal in journal_names["journal_names"]:
         query = f"({journal}[Journal]) AND (2002[Publication Date] : 2022[Publication Date])"
-
+        print(f"\n\n\nFetching fulltext for {journal}\n\n\n")
         pubget(query)
         save_individual_files(journal)
 
