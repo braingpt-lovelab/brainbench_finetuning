@@ -74,7 +74,7 @@ def main():
         journal_names = json.load(f)
 
     for journal in journal_names["journal_names"]:
-        journal_code_name = utils.journal_reformer(journal)
+        journal_code_name = utils.journal_reformer(journal, mode="fulltext")
         query = f"({journal_code_name}[Journal]) AND (2002[Publication Date] : 2022[Publication Date])"
         query = utils.query_reformer(journal, query, mode="fulltext")
 
