@@ -196,12 +196,12 @@ def process_journal(journal):
     save_individual_files(journal, abstracts, dois)
 
 
-def main():
+def main(num_processes):
     with open("journal_names.json", "r") as f:
         journal_names = json.load(f)
 
     # Use multiprocessing and apply_async to parallelize processing for each journal
-    with multiprocessing.Pool() as pool:
+    with multiprocessing.Pool(num_processes) as pool:
         results = [
             pool.apply_async(
                 process_journal, 
@@ -219,4 +219,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    main(num_processes=1)
