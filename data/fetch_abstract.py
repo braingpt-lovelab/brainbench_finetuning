@@ -181,9 +181,10 @@ def main():
 
     for journal in journal_names["journal_names"]:
         print(f"\n\n\nFetching abstracts from [{journal}]\n\n\n")
-        # Replace space with + sign
-        journal_no_space = journal.replace(" ", "+")
-        query = f"{journal_no_space}[Journal]+AND+2002:2022[DP]"
+
+        journal_code_name = utils.journal_reformer(journal, mode="abstract")
+        query = f"{journal_code_name}[Journal]+AND+2002:2022[DP]"
+        query = utils.query_reformer(journal, query, mode="abstract")
 
         # search pubmed
         search_data = _esearch(query, retmax, base_url, db)
