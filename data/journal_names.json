@@ -6,7 +6,6 @@
         "NeuroImage",
         "Molecular Psychiatry",
         "Journal of Neuroscience",
-        "eLife",
         "Nature Reviews Neuroscience",
         "Cerebral Cortex",
         "Annals of Neurology",
@@ -99,6 +98,14 @@
         "Brain and Behavior",
         "Brain Research",
         "Neurorehabilitation and Neural Repair",
-        "Autism Research"
+        "Autism Research",
+        "eLife",
+        "Science Advances",
+        "Nature Communications",
+        "PNAS",
+        "Nature",
+        "Cell",
+        "Cell Reports",
+        "EMBO J"
     ]
 }
