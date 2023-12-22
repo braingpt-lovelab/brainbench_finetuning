@@ -4,6 +4,7 @@ import re
 import time
 import json
 import urllib.request
+import multiprocessing
 
 import utils
 
@@ -171,32 +172,50 @@ def save_individual_files(journal, abstracts, dois):
             json.dump(abstract_text, f)
 
 
-def main():
+def process_journal(journal):
     db = 'db=pubmed'
     retmax = 99999
     base_url = 'https://eutils.ncbi.nlm.nih.gov/entrez/eutils/'
 
+    print(f"\n\n\nFetching abstracts from [{journal}]\n\n\n")
+
+    journal_code_name = utils.journal_reformer(journal, mode="abstract")
+    query = f"{journal_code_name}[Journal]+AND+2002:2022[DP]"
+    query = utils.query_reformer(journal, query, mode="abstract")
+
+    # search pubmed
+    search_data = _esearch(query, retmax, base_url, db)
+
+    # fetch abstracts
+    fetch_data = _efecth(search_data, base_url, db, retmax)
+
+    # extract abstracts
+    abstracts, dois = extract_abstracts(fetch_data)
+
+    # save abstracts named by doi
+    save_individual_files(journal, abstracts, dois)
+
+
+def main():
     with open("journal_names.json", "r") as f:
         journal_names = json.load(f)
 
-    for journal in journal_names["journal_names"]:
-        print(f"\n\n\nFetching abstracts from [{journal}]\n\n\n")
+    # Use multiprocessing and apply_async to parallelize processing for each journal
+    with multiprocessing.Pool() as pool:
+        results = [
+            pool.apply_async(
+                process_journal, 
+                args=(journal,)
+            ) for journal in journal_names["journal_names"]
+        ]
 
-        journal_code_name = utils.journal_reformer(journal, mode="abstract")
-        query = f"{journal_code_name}[Journal]+AND+2002:2022[DP]"
-        query = utils.query_reformer(journal, query, mode="abstract")
+        # Wait for all processes to finish
+        pool.close()
+        pool.join()
 
-        # search pubmed
-        search_data = _esearch(query, retmax, base_url, db)
-
-        # fetch abstracts
-        fetch_data = _efecth(search_data, base_url, db, retmax)
-
-        # extract abstracts
-        abstracts, dois = extract_abstracts(fetch_data)
-
-        # save abstracts named by doi
-        save_individual_files(journal, abstracts, dois)
+        # Retrieve results if needed
+        for result in results:
+            result.get()
 
 
 if __name__ == "__main__":
