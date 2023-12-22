@@ -94,9 +94,9 @@ def main(model_fpath, num_processes, return_num_tokens):
 
 if __name__ == "__main__":
     model_fpath = "meta-llama/Llama-2-7b-chat-hf"
-    return_num_tokens = False
+    return_num_tokens = True
     main(
         model_fpath, 
-        num_processes=100, 
+        num_processes=128, 
         return_num_tokens=return_num_tokens
     )
