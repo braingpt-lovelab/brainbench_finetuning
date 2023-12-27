@@ -5,6 +5,7 @@ import math
 import pickle
 import time
 import json
+import itertools
 from collections import OrderedDict
 
 import torch
@@ -27,9 +28,9 @@ from peft import PeftConfig, PeftModel
 from torch.utils.data import DataLoader
 
 
-# accelerator = Accelerator()
-device = 'cuda' if torch.cuda.is_available() else 'cpu'
-# device = accelerator.device
+accelerator = Accelerator()
+# device = 'cuda' if torch.cuda.is_available() else 'cpu'
+device = accelerator.device
 random.seed(1)
 torch.manual_seed(1)
 
@@ -62,9 +63,11 @@ def tokenize(element, tokenizer, args):
         return_overflowing_tokens=True,
         return_length=True,
     )
-    input_batch = []
-    input_lengths = []
-    return outputs
+    output_ids = list(itertools.chain(*outputs["input_ids"]))
+    output_mask = list(itertools.chain(*outputs["attention_mask"]))
+    output_ids = [output_ids[x:x+args.chunk_size] for x in range(0, len(output_ids), args.chunk_size)]
+    output_mask = [output_mask[x:x+args.chunk_size] for x in range(0, len(output_mask), args.chunk_size)]
+    return {"input_ids": output_ids, "attention_mask": output_mask}
 
 
 def collate_fn(batch):
@@ -74,9 +77,9 @@ def collate_fn(batch):
     input_ids = pad_sequence(input_ids, batch_first=True, padding_value=0)
     attention_masks = pad_sequence(attention_masks, batch_first=True, padding_value=0)
     return {
-        "input_ids": input_ids.to(device),
-        "attention_mask": attention_masks.to(device),
-        "labels": labels.to(device),
+        "input_ids": input_ids,  #.to(device),
+        "attention_mask": attention_masks,  #.to(device),
+        "labels": labels,  #.to(device),
     }
 
 
@@ -91,7 +94,7 @@ def save_checkpoint(LLM, tokenizer, outputdir, epoch):
 
 def main(rank, args, world_size):
     ## Setup DDP
-    ddp_setup(rank, world_size, args.master_port)
+    # ddp_setup(rank, world_size, args.master_port)
     print(f"rank: {rank}")
 
     # Save model configuration
@@ -99,10 +102,11 @@ def main(rank, args, world_size):
         json.dump(args.__dict__, f, indent=2)
 
     # Load huggingface dataset
-    dataset = load_dataset(args.data_path)
+    dataset = load_dataset(args.data_path, cache_dir="/datadrive1/brian/braingpt_finetuning/cache")
 
     # Load tokenizer
-    tokenizer = AutoTokenizer.from_pretrained(args.model_path, cache_dir="/datadrive1/ken/.cache/huggingface/hub")
+    # tokenizer = AutoTokenizer.from_pretrained(args.model_path, cache_dir="/datadrive1/ken/.cache/huggingface/hub")
+    tokenizer = AutoTokenizer.from_pretrained(args.model_path, cache_dir="/datadrive1/brian/braingpt_finetuning/cache")
     tokenized_dataset = dataset.map(
         tokenize,
         fn_kwargs={"tokenizer": tokenizer, "args": args},
@@ -115,21 +119,22 @@ def main(rank, args, world_size):
         tokenized_dataset["train"],
         batch_size=args.batch_size,
         collate_fn=collate_fn,
-        sampler=DistributedSampler(tokenized_dataset["train"]),
-        shuffle=False,
+        # sampler=DistributedSampler(tokenized_dataset["train"]),
+        shuffle=True,
     )
     valid_dataloader = DataLoader(
         tokenized_dataset["validation"],
         batch_size=args.batch_size,
         collate_fn=collate_fn,
-        sampler=DistributedSampler(tokenized_dataset["validation"]),
+        # sampler=DistributedSampler(tokenized_dataset["validation"]),
     )
 
     # Define model
     with open(args.lora_config) as fin:
         lora_config = json.load(fin)
     os.system("cp {} {}".format(args.lora_config, os.path.join(args.outputdir, 'lora_config.json')))
-    LLM = AutoModelForCausalLM.from_pretrained(args.model_path, torch_dtype=torch.float16, cache_dir="/datadrive1/ken/.cache/huggingface/hub")
+    # LLM = AutoModelForCausalLM.from_pretrained(args.model_path, torch_dtype=torch.float16, cache_dir="/datadrive1/ken/.cache/huggingface/hub")
+    LLM = AutoModelForCausalLM.from_pretrained(args.model_path, torch_dtype=torch.float16, cache_dir="/datadrive1/brian/braingpt_finetuning/cache")
     peft_config = LoraConfig(
         task_type=TaskType.CAUSAL_LM,
         inference_mode=False,
@@ -140,8 +145,8 @@ def main(rank, args, world_size):
     )
     LLM = get_peft_model(LLM, peft_config)
     LLM.print_trainable_parameters()
-    LLM = LLM.to(device)
-    LLM = DDP(LLM, device_ids=[rank])
+    # LLM = LLM.to(device)
+    # LLM = DDP(LLM, device_ids=[rank])
 
     ## Initialise criterion and optimiser
     criterion = torch.nn.CrossEntropyLoss(ignore_index=-1)
@@ -171,8 +176,8 @@ def main(rank, args, world_size):
         num_warmup_steps=num_warmup_steps,
         num_training_steps=max_train_steps,
     )
-    # LLM, optimizer, train_dataloader, valid_dataloader = accelerator.prepare(
-    #     LLM, optimizer, train_dataloader, valid_dataloader)
+    LLM, optimizer, train_dataloader, valid_dataloader, lr_scheduler = accelerator.prepare(
+        LLM, optimizer, train_dataloader, valid_dataloader, lr_scheduler)
 
     logging("Start training", args.logfile)
     # Training loop
@@ -186,15 +191,15 @@ def main(rank, args, world_size):
             labels = batch["labels"][:, 1:]
             loss = criterion(logits.view(-1, logits.size(-1)), labels.reshape(-1))
             loss = loss / args.gradient_accumulation_steps
-            loss.backward()
-            # accelerator.backward(loss)
+            # loss.backward()
+            accelerator.backward(loss)
 
             if (i + 1) % args.gradient_accumulation_steps == 0:
                 # torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
                 optimizer.step()
                 lr_scheduler.step()
                 optimizer.zero_grad()
-            if (i + 1) % args.log_interval == 0:
+            if (i + 1) % args.log_interval == 0 and accelerator.is_main_process:
                 elasped_time = time.time() - start
                 PPL = math.exp(loss.item() * args.gradient_accumulation_steps)
                 logging(f"Epoch {epoch} | Batch {i}/{trainsize} | PPL: {PPL} | time {elasped_time}", args.logfile)
@@ -208,7 +213,7 @@ def main(rank, args, world_size):
                     current_lr = optimizer.param_groups[0]["lr"]
                     torch.distributed.reduce(val_loss, 0)
                     # Save models
-                    if rank == 0:
+                    if accelerator.is_main_process:
                         logging(f"Epoch {epoch} | Validation PPL: {val_ppl/world_size} | Learning rate: {current_lr}", args.logfile)
                         if val_loss < best_val_loss:
                             ckpt_path = os.path.join(args.outputdir, "checkpoint.{}_{}".format(epoch, (i + 1)))
@@ -223,7 +228,7 @@ def main(rank, args, world_size):
             current_lr = optimizer.param_groups[0]["lr"]
             torch.distributed.reduce(val_loss, 0)
             # Save models
-            if rank == 0:
+            if accelerator.is_main_process:
                 logging(f"End of epoch {epoch} | Validation PPL: {val_ppl/world_size} | Learning rate: {current_lr}", args.logfile)
                 if val_loss < best_val_loss:
                     ckpt_path = os.path.join(args.outputdir, "checkpoint.{}".format(epoch))
@@ -367,5 +372,5 @@ if __name__ == "__main__":
     args = parser.parse_args()
     world_size = torch.cuda.device_count()
     print(world_size)
-    mp.spawn(main, args=(args, world_size,), nprocs=world_size)
-    # main(0, args, world_size)
+    # mp.spawn(main, args=(args, world_size,), nprocs=world_size)
+    main(0, args, world_size)

@@ -12,14 +12,15 @@ while true; do
 done
 echo $PORT
 
-expdir=exp/finetune_llama2_7b
+expdir=exp/finetune_llama2_chat_7b
 mkdir -p $expdir
 
 # Need to replace model_path and data_path, current data_path is just for testing
 
-python finetune.py \
-    --model_path /datadrive1/ken/.cache/huggingface/hub/models--meta-llama--Llama-2-7b-hf/snapshots/8cca527612d856d7d32bd94f8103728d614eb852/ \
-    --data_path /datadrive1/brian/braingpt_finetuning/data/dataset/testdata/ \
+# python 
+accelerate launch --config_file config/accel_config.yaml finetune.py \
+    --model_path /datadrive1/ken/.cache/huggingface/hub/models--meta-llama--Llama-2-7b-chat-hf/snapshots/c1b0db933684edbfe29a06fa47eb19cc48025e93 \
+    --data_path /datadrive1/brian/dataset/data/ \
     --batch_size 1 \
     --chunk_size 2048 \
     --eval_batch_size 16 \
@@ -31,7 +32,8 @@ python finetune.py \
     --lr_scheduler_type cosine \
     --outputdir $expdir \
     --logfile $expdir/log.txt \
-    --log_interval 10 \
-    --save_interval 100 \
+    --log_interval 1000 \
+    --save_interval 10000 \
     --lora_config config/lora_config.json \
-    --master_port $PORT \
+    # --master_port $PORT \
+    # --data_path data/dataset/testdata/ \
