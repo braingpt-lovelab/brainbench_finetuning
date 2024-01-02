@@ -12,7 +12,7 @@ while true; do
 done
 echo $PORT
 
-expdir=exp/finetune_llama2_chat_7b
+expdir=exp/finetune_llama2_chat_7b_FFNet
 mkdir -p $expdir
 
 # Need to replace model_path and data_path, current data_path is just for testing
