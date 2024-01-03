@@ -1,0 +1,7 @@
+{
+    "lora_rank": 8,
+    "lora_alpha": 32,
+    "lora_dropout": 0.1,
+    "lora_module": ["gate_proj", "up_proj", "down_proj"],
+    "rest_module": ["q_proj", "v_proj", "o_proj"]
+}
