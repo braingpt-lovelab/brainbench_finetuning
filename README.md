@@ -30,7 +30,23 @@ def tokenize(element, tokenizer, args):
 ```
 ### Hyperparameters
 1. Training hyperparameters can be found in `train.sh`
+   - `batch_size=1`
+   - `chunk_size=2048`
+   - `eval_batch_size=16`
+   - `learning_rate=2e-5`
+   - `gradient_accumulation_steps=8`
+   - `num_train_epochs=1`
+   - `num_warmup_steps=0.03`
+   - `weight_decay=0.001`
+   - `lr_scheduler_type="cosine"`
 2. LoRA parameters can be found in `config/lora_config.json`
+   - `lora_rank=8`
+   - `lora_alpha=32`
+   - `lora_dropout=0.1`
+   - `lora_module=["gate_proj", "up_proj", "down_proj"]` (Variant 1; Fully-connected only)
+   - `lora_module=["q_proj", "v_proj", "o_proj"]` (Variant 2; Attention only)
+   - `lora_module=["gate_proj", "up_proj", "down_proj", "q_proj", "v_proj", "o_proj"]` (Variant 3; Full lora)
+3. Accelerate parameters can be found in `config/accel_config.yaml`
 
 ## Build dataset from scratch
 All regarding dataset download and curation is in `data`
