@@ -1,4 +1,7 @@
 ## Finetuning (LoRA)
+
+Currently, the finetuning is done wrt `meta-llama/Llama-2-7b-chat-hf`
+
 The main entry-points are `finetune.py` and `train.sh`
 ### Train and valid set
 1. Training and validation sets are splitted (99% train, 1% valid) randomly based on all curated data from PubMed Central Open Access Subset (see **Build dataset from scratch**).
