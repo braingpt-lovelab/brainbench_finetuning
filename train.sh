@@ -26,7 +26,7 @@ accelerate launch --config_file config/accel_config.yaml finetune.py \
     --eval_batch_size 16 \
     --learning_rate 2e-5 \
     --gradient_accumulation_steps 8 \
-    --num_train_epochs 3 \
+    --num_train_epochs 1 \
     --num_warmup_steps 0.03 \
     --weight_decay 0.001 \
     --lr_scheduler_type cosine \
