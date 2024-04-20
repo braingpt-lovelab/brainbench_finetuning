@@ -1,0 +1,3 @@
+[submodule "evals/testcases"]
+	path = evals/testcases
+	url = git@github.com:braingpt-lovelab/brainbench_testcases.git
