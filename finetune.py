@@ -211,10 +211,11 @@ def main(rank, args, world_size):
                     val_loss = evaluate(args, LLM, valid_dataloader, criterion)
                     current_lr = optimizer.param_groups[0]["lr"]
                     torch.distributed.reduce(val_loss, 0)
+                    val_loss = val_loss / world_size
                     # Save models
                     if accelerator.is_main_process:
                         val_ppl = math.exp(val_loss)
-                        logging(f"Epoch {epoch} | Validation PPL: {val_ppl/world_size} | Learning rate: {current_lr}", args.logfile)
+                        logging(f"Epoch {epoch} | Validation PPL: {val_ppl} | Learning rate: {current_lr}", args.logfile)
                         if val_loss < best_val_loss:
                             ckpt_path = os.path.join(args.outputdir, "checkpoint.{}_{}".format(epoch, (i + 1)))
                             logging(f"Save checkpoint to {ckpt_path}", args.logfile)
@@ -226,10 +227,11 @@ def main(rank, args, world_size):
             val_loss = evaluate(args, LLM, valid_dataloader, criterion)
             current_lr = optimizer.param_groups[0]["lr"]
             torch.distributed.reduce(val_loss, 0)
+            val_loss = val_loss / world_size
             # Save models
             if accelerator.is_main_process:
                 val_ppl = math.exp(val_loss)
-                logging(f"End of epoch {epoch} | Validation PPL: {val_ppl/world_size} | Learning rate: {current_lr}", args.logfile)
+                logging(f"End of epoch {epoch} | Validation PPL: {val_ppl} | Learning rate: {current_lr}", args.logfile)
                 if val_loss < best_val_loss:
                     ckpt_path = os.path.join(args.outputdir, "checkpoint.{}".format(epoch))
                     logging(f"Save checkpoint to {ckpt_path}", args.logfile)
